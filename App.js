@@ -8,21 +8,40 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
 
-// Keep the splash screen visible while we fetch resources
+import "./index.css";
+
 SplashScreen.preventAutoHideAsync();
 
 const App = () => {
   const [isConnected, setIsConnected] = useState(null);
   const [appIsReady, setAppIsReady] = useState(false);
-  const [colorScheme, setColorScheme] = useState(Appearance.getColorScheme());
+  const colorScheme = useColorScheme();
+  const [statusBarColor, setStatusBarColor] = useState("#0f172a");
+  const [webViewKey, setWebViewKey] = useState(0);
+
+  const theme = {
+    dark: {
+      background: "#0f172a",
+      statusBar: "#0f172a",
+      text: "#ffffff",
+      danger: "#dc2626",
+    },
+    light: {
+      background: "#ffffff",
+      statusBar: "#ffffff",
+      text: "#1e293b",
+      danger: "#b91c1c",
+    },
+  };
 
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      setColorScheme(colorScheme);
+      setWebViewKey((prev) => prev + 1); // Force WebView re-render
     });
     return () => subscription.remove();
   }, []);
@@ -49,78 +68,72 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  const getThemeStyles = () =>
-    StyleSheet.create({
-      container: {
-        flex: 1,
-        backgroundColor: colorScheme === "dark" ? "#0f172a" : "#ffffff",
-      },
-      offlineText: {
-        fontSize: 24,
-        fontWeight: "bold",
-        marginBottom: 10,
-        color: colorScheme === "dark" ? "#dc2626" : "#b91c1c",
-      },
-      offlineSubText: {
-        fontSize: 16,
-        textAlign: "center",
-        color: colorScheme === "dark" ? "#f1f5f9" : "#1e293b",
-      },
-    });
+  const currentTheme = theme[colorScheme];
 
   if (!appIsReady) {
     return null;
   }
 
-  const themeStyles = getThemeStyles();
-
   return (
-    <SafeAreaView style={themeStyles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: currentTheme.background }]}
+    >
       <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle={colorScheme === "light" ? "dark-content" : "dark-content"}
+        animated={true}
+        barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
+        backgroundColor={"#0f172a"}
       />
 
       {!isConnected ? (
-        <View style={[styles.offlineContainer, themeStyles.container]}>
-          <Text style={themeStyles.offlineText}>No Internet Connection</Text>
-          <Text style={themeStyles.offlineSubText}>
+        <View
+          style={[
+            styles.offlineContainer,
+            { backgroundColor: currentTheme.background },
+          ]}
+        >
+          <Text style={[styles.offlineText, { color: currentTheme.danger }]}>
+            No Internet Connection
+          </Text>
+          <Text style={[styles.offlineSubText, { color: currentTheme.text }]}>
             Please check your network settings and try again.
           </Text>
         </View>
       ) : (
         <WebView
+          key={webViewKey}
           source={{ uri: "https://www.mdranju.xyz" }}
           startInLoadingState={true}
           renderLoading={() => (
-            <View style={[styles.loadingContainer, themeStyles.container]}>
-              <ActivityIndicator
-                size="large"
-                color={colorScheme === "light" ? "#0f172a" : "#0a0e19"}
-              />
+            <View
+              style={[
+                styles.loadingContainer,
+                { backgroundColor: currentTheme.background },
+              ]}
+            >
+              <ActivityIndicator size="large" color={currentTheme.text} />
             </View>
           )}
           style={[
             styles.webview,
             {
-              marginTop: StatusBar.currentHeight,
-              backgroundColor: themeStyles.container.backgroundColor,
+              backgroundColor: currentTheme.background,
+              paddingTop: statusBarColor,
             },
           ]}
-          injectedJavaScriptForMainFrameOnly={true}
           injectedJavaScript={`
-            document.body.style.backgroundColor = '${themeStyles.container.backgroundColor}';
+            document.body.style.backgroundColor = '${currentTheme.background}';
             true;
           `}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.log("WebView error:", nativeEvent);
+          onLoadProgress={({ nativeEvent }) => {
+            if (nativeEvent.progress === 1) {
+              setStatusBarColor(currentTheme.statusBar);
+            }
           }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.log("HTTP error:", nativeEvent.statusCode);
-          }}
+          onError={() => setStatusBarColor(currentTheme.statusBar)}
+          mixedContentMode="compatibility"
+          allowsFullscreenVideo
+          javaScriptEnabled
+          domStorageEnabled
         />
       )}
     </SafeAreaView>
@@ -128,6 +141,9 @@ const App = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   webview: {
     flex: 1,
   },
@@ -141,6 +157,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+  },
+  offlineText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  offlineSubText: {
+    fontSize: 16,
+    textAlign: "center",
   },
 });
 
