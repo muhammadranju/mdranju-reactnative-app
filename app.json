@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MyWebviewApp",
-    "slug": "MyWebviewApp",
+    "name": "MdRanjuApp",
+    "slug": "MdRanjuApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
